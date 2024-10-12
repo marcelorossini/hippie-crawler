@@ -1,0 +1,13 @@
+version: '3'
+services:
+  xterm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5800:5800"
+      - "5900:5900"
+      - "3123:3000"
+    environment:
+      - APP_NAME=Xterm
+    #restart: unless-stopped
