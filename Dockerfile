@@ -15,6 +15,7 @@ COPY /src /src
 
 # Etapa 2: Imagem final
 FROM jlesage/baseimage-gui:alpine-3.15-v4
+VOLUME ["/src/storage"]
 
 # Instale pacotes adicionais necessários
 RUN add-pkg xterm wget bash udev ttf-freefont chromium chromium-chromedriver

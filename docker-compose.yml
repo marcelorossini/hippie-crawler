@@ -10,4 +10,6 @@ services:
       - "3123:3000"
     environment:
       - APP_NAME=Xterm
+    volumes:
+      - ./data/storage:/src/storage
     #restart: unless-stopped

@@ -5,17 +5,18 @@ const path = require('path');
 const express = require('express');
 const app = express();
 app.use(express.raw({ type: 'text/plain' }));
-app.use(express.urlencoded({limit: '50mb'}));
-
+app.use(express.urlencoded({ limit: '50mb' }));
+const crypto = require('crypto');
 
 const FILE_COOKIE = "./storage/cookies.json";
+const PATH_DOWNLOAD = './downloads'
 let page = null;
 let browser = null;
 
 app.post("/code", async (req, res) => {
   try {
     console.log(req.body)
-    const code = req.body.toString(); 
+    const code = req.body.toString();
     const result = await main(code)
     res.send(result);
   } catch (error) {
@@ -39,6 +40,7 @@ async function runCode(code) {
 
 async function main(code) {
   await createDirectory(path.join(__dirname, 'storage'));
+  await createDirectory(path.join(__dirname, 'downloads'));
 
   const puppeteer = require("puppeteer-extra");
   const StealthPlugin = require("puppeteer-extra-plugin-stealth");
@@ -53,39 +55,30 @@ async function main(code) {
   });
 
   try {
-
+    //const context = browser.defaultBrowserContext()
     page = await browser.newPage();
+    /*
     await page.setUserAgent(
       "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0"
     );
-    await loadCookies();
-  
+    */
+    await setPageDefauts(page);
+
     await page.setViewport({ width: 1920, height: 1080 });
     await page.goto("https://www.bling.com.br/inicio#/");
-  
-    try {
-      await page.waitForSelector("#username", { timeout: 5000 });
-      const emailSelector = "#username";
-      const inputEmail = await page.waitForSelector(emailSelector);
-      console.log(process.env.USERNAME);
-      await inputEmail.type(process.env.USERNAME);
-      const passwordSelector =
-        "#login > div > div.login-content.u-flex.u-flex-col.u-items-center > div > div.password-container.u-self-stretch > div > input";
-      const inputPassword = await page.waitForSelector(passwordSelector);
-      await inputPassword.type(process.env.PASSWORD);
-      (await page.waitForSelector(".login-button")).click();
-    } catch (error) { }
-  
+
+    await checkLogin(page);
+
     // Verifica se estamos na tela inicial do bling
     await page.waitForSelector("#perfilPanel > div:nth-child(1) > div > a > h3", {
       timeout: 0,
     });
-  
+
     // Salva sessao
     await storeCookies();
-  
+
     const result = await runCode(code);
-  
+
     browser.close()
     return result;
   } catch (error) {
@@ -94,7 +87,7 @@ async function main(code) {
   }
 };
 
-async function loadCookies() {
+async function loadCookies(pageProps) {
   try {
     // Verifica se o arquivo existe
     await fs.access(FILE_COOKIE);
@@ -102,7 +95,7 @@ async function loadCookies() {
     // Lê o arquivo se ele existir
     const cookiesString = await fs.readFile(FILE_COOKIE, "utf-8");
 
-    const session = await page.target().createCDPSession();
+    const session = await pageProps.target().createCDPSession();
     const parsed = JSON.parse(cookiesString);
     await session.send("Network.setCookies", {
       cookies: parsed,
@@ -132,3 +125,45 @@ async function createDirectory(dirPath) {
     console.error(`Erro ao criar diretório: ${error.message}`);
   }
 }
+
+async function setPageDefauts(pageProps) {
+  await loadCookies(pageProps);
+
+  const client = await pageProps.target().createCDPSession()
+  await client.send('Page.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: PATH_DOWNLOAD,
+  })
+}
+
+async function checkLogin(pageProps) {
+  try {
+    console.log(pageProps.url())
+    await pageProps.waitForSelector("#username", { timeout: 5000 });
+    const emailSelector = "#username";
+    const inputEmail = await pageProps.waitForSelector(emailSelector);
+    console.log(process.env.USERNAME);
+    await inputEmail.type(process.env.USERNAME);
+    const passwordSelector =
+      "#login > div > div.login-content.u-flex.u-flex-col.u-items-center > div > div.password-container.u-self-stretch > div > input";
+    const inputPassword = await pageProps.waitForSelector(passwordSelector);
+    await inputPassword.type(process.env.PASSWORD);
+    (await pageProps.waitForSelector(".login-button")).click();
+  } catch (error) { 
+    console.log(error)
+  }
+}
+
+
+const getLatestFile = async (dir) => {
+  const files = await fs.readdir(dir);
+  const fileStats = await Promise.all(
+    files.map(async (file) => {
+      const filePath = path.join(dir, file);
+      const stat = await fs.stat(filePath);
+      return { file, time: stat.mtime.getTime() };
+    })
+  );
+  // Ordena os arquivos por tempo de modificação (o mais recente primeiro)
+  return fileStats.sort((a, b) => b.time - a.time)[0]?.file;
+};
