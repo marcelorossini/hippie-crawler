@@ -1,3 +1,3 @@
-2024/10/20-21:56:16.405 4fe Reusing MANIFEST /src/storage/user_data/Default/shared_proto_db/metadata/MANIFEST-000001
-2024/10/20-21:56:16.406 4fe Recovering log #3
-2024/10/20-21:56:16.406 4fe Reusing old log /src/storage/user_data/Default/shared_proto_db/metadata/000003.log 
+2024/10/21-16:52:35.419 356 Reusing MANIFEST /src/storage/user_data/Default/shared_proto_db/metadata/MANIFEST-000001
+2024/10/21-16:52:35.420 356 Recovering log #3
+2024/10/21-16:52:35.420 356 Reusing old log /src/storage/user_data/Default/shared_proto_db/metadata/000003.log 

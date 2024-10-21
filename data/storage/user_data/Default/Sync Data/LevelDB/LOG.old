@@ -1,3 +1,3 @@
-2024/10/20-21:55:53.274 42e Reusing MANIFEST /src/storage/user_data/Default/Sync Data/LevelDB/MANIFEST-000001
-2024/10/20-21:55:53.275 42e Recovering log #3
-2024/10/20-21:55:53.276 42e Reusing old log /src/storage/user_data/Default/Sync Data/LevelDB/000003.log 
+2024/10/21-16:48:48.083 279 Reusing MANIFEST /src/storage/user_data/Default/Sync Data/LevelDB/MANIFEST-000001
+2024/10/21-16:48:48.085 279 Recovering log #3
+2024/10/21-16:48:48.085 279 Reusing old log /src/storage/user_data/Default/Sync Data/LevelDB/000003.log 
