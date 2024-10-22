@@ -15,6 +15,7 @@ pids
 # Diretórios de build
 dist/
 build/
+data/
 
 # Sistema operacional
 .DS_Store
@@ -44,3 +45,4 @@ npm-cache/
 # Arquivos temporários
 tmp/
 temp/
+data/
