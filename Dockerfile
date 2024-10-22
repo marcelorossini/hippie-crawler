@@ -7,6 +7,9 @@ WORKDIR /src
 # Copie o package.json e package-lock.json para a etapa de build
 COPY /src/package*.json ./
 
+# pm2
+RUN npm install pm2 -g
+
 # Instale as dependências
 RUN npm install --ignore-scripts --only=production
 
