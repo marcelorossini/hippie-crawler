@@ -7,9 +7,6 @@ WORKDIR /src
 # Copie o package.json e package-lock.json para a etapa de build
 COPY /src/package*.json ./
 
-# pm2
-RUN npm install pm2 -g
-
 # Instale as dependências
 RUN npm install --ignore-scripts --only=production
 
@@ -24,6 +21,11 @@ VOLUME ["/src/storage"]
 RUN add-pkg xterm wget bash udev ttf-freefont chromium chromium-chromedriver
 
 RUN apk add --no-cache nodejs npm
+
+# pm2
+RUN npm install pm2 -g
+RUN mkdir /root/.pm2
+RUN chmod -R 777 /root/.pm2
 
 # Copie o script de inicialização
 COPY startapp.sh /startapp.sh
