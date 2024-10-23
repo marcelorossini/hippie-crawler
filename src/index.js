@@ -7,17 +7,17 @@ const app = express();
 app.use(express.raw({ type: 'text/plain' }));
 app.use(express.urlencoded({ limit: '50mb' }));
 const crypto = require('crypto');
-
+const fetch = require('node-fetch');
+var pages = {}
 const FILE_COOKIE = "./storage/cookies.json";
 const PATH_DOWNLOAD = './downloads'
-let page = null;
-let browser = null;
+
 
 app.post("/code", async (req, res) => {
   try {
-    console.log(req.body)
+    const wait = req.query?.wait != 'false'
     const code = req.body.toString();
-    const result = await main(code)
+    const result = await main(code, wait)
     res.send(result);
   } catch (error) {
     console.error(error);
@@ -30,15 +30,16 @@ app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
 
-async function runCode(code) {
+async function runCode(code, pageId) {
   const fullCode = `
+  var page = pages['${pageId}'];
   (async () => {${code}})()
 `;
   const result = await eval(fullCode);
   return result
 }
 
-async function main(code) {
+async function startBrowser() {
   await createDirectory(path.join(__dirname, 'storage'));
   await createDirectory(path.join(__dirname, 'downloads'));
 
@@ -46,22 +47,23 @@ async function main(code) {
   const StealthPlugin = require("puppeteer-extra-plugin-stealth");
   puppeteer.use(StealthPlugin());
 
-  browser = await puppeteer.launch({
+  const browser = await puppeteer.launch({
     executablePath: '/usr/bin/chromium-browser',
     args: ["--no-sandbox"],
     timeout: 10000,
     headless: false,
-    userDataDir: "./storage/user_data",
+    //userDataDir: "./storage/user_data",
   });
 
+  return browser
+}
+
+async function main(code, wait) {
+  const browser = await startBrowser()
+  const page = await browser.newPage();
+  const pageId = crypto.randomUUID()
+  pages[pageId] = page;
   try {
-    //const context = browser.defaultBrowserContext()
-    page = await browser.newPage();
-    /*
-    await page.setUserAgent(
-      "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0"
-    );
-    */
     await setPageDefauts(page);
 
     await page.setViewport({ width: 1920, height: 1080 });
@@ -75,14 +77,24 @@ async function main(code) {
     });
 
     // Salva sessao
-    await storeCookies();
+    await storeCookies(page);
 
-    const result = await runCode(code);
+    if (!wait) {
+      runCode(code, pageId).then(result => {
+        page.close()
+        browser.close()
+        delete pages[pageId]
+      });
+      return true
+    }
 
+    const result = await runCode(code, pageId);
+    page.close()
     browser.close()
+    delete pages[pageId]
     return result;
   } catch (error) {
-    browser.close()
+    page.close()
     return error.message;
   }
 };
@@ -110,8 +122,8 @@ async function loadCookies(pageProps) {
   }
 }
 
-async function storeCookies() {
-  const session = await page.target().createCDPSession();
+async function storeCookies(pageProps) {
+  const session = await pageProps.target().createCDPSession();
   const resp = await session.send("Network.getAllCookies");
   await session.detach();
   await fs.writeFile(FILE_COOKIE, JSON.stringify(resp.cookies, null, 2));
@@ -149,7 +161,7 @@ async function checkLogin(pageProps) {
     const inputPassword = await pageProps.waitForSelector(passwordSelector);
     await inputPassword.type(process.env.PASSWORD);
     (await pageProps.waitForSelector(".login-button")).click();
-  } catch (error) { 
+  } catch (error) {
     console.log(error)
   }
 }
