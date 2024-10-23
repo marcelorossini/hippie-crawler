@@ -100,6 +100,8 @@ async function main(code, wait) {
     return result;
   } catch (error) {
     page.close()
+    browser.close()
+    delete instances[pageId]
     return error.message;
   }
 };
