@@ -8,7 +8,7 @@ app.use(express.raw({ type: 'text/plain' }));
 app.use(express.urlencoded({ limit: '50mb' }));
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-var pages = {}
+var instances = {}
 const FILE_COOKIE = "./storage/cookies.json";
 const PATH_DOWNLOAD = './downloads'
 
@@ -32,7 +32,8 @@ app.listen(port, () => {
 
 async function runCode(code, pageId) {
   const fullCode = `
-  var page = pages['${pageId}'];
+  const browser = instances['${pageId}'].browser;
+  const page = instances['${pageId}'].page;
   (async () => {${code}})()
 `;
   const result = await eval(fullCode);
@@ -62,7 +63,11 @@ async function main(code, wait) {
   const browser = await startBrowser()
   const page = await browser.newPage();
   const pageId = crypto.randomUUID()
-  pages[pageId] = page;
+  instances[pageId] = {
+    browser,
+    page
+  };
+
   try {
     await setPageDefauts(page);
 
@@ -83,7 +88,7 @@ async function main(code, wait) {
       runCode(code, pageId).then(result => {
         page.close()
         browser.close()
-        delete pages[pageId]
+        delete instances[pageId]
       });
       return true
     }
@@ -91,7 +96,7 @@ async function main(code, wait) {
     const result = await runCode(code, pageId);
     page.close()
     browser.close()
-    delete pages[pageId]
+    delete instances[pageId]
     return result;
   } catch (error) {
     page.close()
