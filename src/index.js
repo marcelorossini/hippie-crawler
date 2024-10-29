@@ -9,15 +9,16 @@ app.use(express.urlencoded({ limit: '50mb' }));
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 var instances = {}
-const FILE_COOKIE = "./storage/cookies.json";
+const getFileCookie = (id) => `./storage/${id}/cookies.json`;
 const PATH_DOWNLOAD = './downloads'
 
 
 app.post("/code", async (req, res) => {
   try {
     const wait = req.query?.wait != 'false'
+    const id = req.query?.id
     const code = req.body.toString();
-    const result = await main(code, wait)
+    const result = await main(code, wait, id)
     res.send(result);
   } catch (error) {
     console.error(error);
@@ -40,8 +41,8 @@ async function runCode(code, pageId) {
   return result
 }
 
-async function startBrowser() {
-  await createDirectory(path.join(__dirname, 'storage'));
+async function startBrowser(id) {
+  await createDirectory(path.join(__dirname, 'storage', id));
   await createDirectory(path.join(__dirname, 'downloads'));
 
   const puppeteer = require("puppeteer-extra");
@@ -59,8 +60,8 @@ async function startBrowser() {
   return browser
 }
 
-async function main(code, wait) {
-  const browser = await startBrowser()
+async function main(code, wait, id) {
+  const browser = await startBrowser(id)
   const page = await browser.newPage();
   const pageId = crypto.randomUUID()
   instances[pageId] = {
@@ -69,12 +70,12 @@ async function main(code, wait) {
   };
 
   try {
-    await setPageDefauts(page);
+    await setPageDefauts(page, id);
 
     await page.setViewport({ width: 1920, height: 1080 });
     await page.goto("https://www.bling.com.br/inicio#/");
 
-    await checkLogin(page);
+    await checkLogin(page, id);
 
     // Verifica se estamos na tela inicial do bling
     await page.waitForSelector("#perfilPanel > div:nth-child(1) > div > a > h3", {
@@ -82,7 +83,7 @@ async function main(code, wait) {
     });
 
     // Salva sessao
-    await storeCookies(page);
+    await storeCookies(page, id);
 
     if (!wait) {
       runCode(code, pageId).then(result => {
@@ -106,13 +107,13 @@ async function main(code, wait) {
   }
 };
 
-async function loadCookies(pageProps) {
+async function loadCookies(pageProps, id) {
   try {
     // Verifica se o arquivo existe
-    await fs.access(FILE_COOKIE);
+    await fs.access(getFileCookie(id));
 
     // Lê o arquivo se ele existir
-    const cookiesString = await fs.readFile(FILE_COOKIE, "utf-8");
+    const cookiesString = await fs.readFile(getFileCookie(id), "utf-8");
 
     const session = await pageProps.target().createCDPSession();
     const parsed = JSON.parse(cookiesString);
@@ -129,11 +130,11 @@ async function loadCookies(pageProps) {
   }
 }
 
-async function storeCookies(pageProps) {
+async function storeCookies(pageProps, id) {
   const session = await pageProps.target().createCDPSession();
   const resp = await session.send("Network.getAllCookies");
   await session.detach();
-  await fs.writeFile(FILE_COOKIE, JSON.stringify(resp.cookies, null, 2));
+  await fs.writeFile(getFileCookie(id), JSON.stringify(resp.cookies, null, 2));
 }
 
 async function createDirectory(dirPath) {
@@ -145,8 +146,8 @@ async function createDirectory(dirPath) {
   }
 }
 
-async function setPageDefauts(pageProps) {
-  await loadCookies(pageProps);
+async function setPageDefauts(pageProps, id) {
+  await loadCookies(pageProps, id);
 
   const client = await pageProps.target().createCDPSession()
   await client.send('Page.setDownloadBehavior', {
@@ -155,18 +156,18 @@ async function setPageDefauts(pageProps) {
   })
 }
 
-async function checkLogin(pageProps) {
+async function checkLogin(pageProps, id) {
   try {
     console.log(pageProps.url())
     await pageProps.waitForSelector("#username", { timeout: 5000 });
     const emailSelector = "#username";
     const inputEmail = await pageProps.waitForSelector(emailSelector);
     console.log(process.env.USERNAME);
-    await inputEmail.type(process.env.USERNAME);
+    await inputEmail.type(process.env[`USERNAME_${id}`]);
     const passwordSelector =
       "#login > div > div.login-content.u-flex.u-flex-col.u-items-center > div > div.password-container.u-self-stretch > div > input";
     const inputPassword = await pageProps.waitForSelector(passwordSelector);
-    await inputPassword.type(process.env.PASSWORD);
+    await inputPassword.type(process.env[`PASSWORD_${id}`]);
     (await pageProps.waitForSelector(".login-button")).click();
   } catch (error) {
     console.log(error)
